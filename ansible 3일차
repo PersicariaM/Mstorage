@@ -1,0 +1,224 @@
+# day 3
+
+## 여러개의 패키지 다루기
+
+```bash
+[1] dnf install httpd vsftpd squid -y
+[2] for i in httpd vsftpd squid ; do dnf install $i ; done
+[3] systemctl restart httpd squid
+````
+
+```yaml
+package: [1]
+  name:
+    - httpd
+    - vsftpd
+    - squid
+
+package: [2]
+  name: "{{ item }}"
+loop:
+  - httpd
+  - vsftpd
+  - squid
+
+systemd:
+  name: 
+    - squid
+    - httpd
+
+service:
+  name: "{{ item }}"
+loop:
+  - squid
+  - httpd
+````
+
+## 호스트/그룹 변수
+
+아래와 같이 디렉터리 생성.
+
+```bash
+$ tree -L 4
+.
+├── ansible.cfg
+├── groupvars.yaml
+├── hostvars.yaml
+├── inventory
+│   ├── group_vars
+│   │   ├── db
+│   │   ├── middleware
+│   │   └── web
+│   ├── host_vars
+│   │   ├── node1.example.com
+│   │   ├── node2.example.com
+│   │   ├── node3.example.com
+│   │   └── node4.example.com
+│   └── hosts
+```
+
+
+## host_vars
+
+```bash
+vi ansible.cfg
+
+[defaults]
+inventory=inventory/hosts
+cow_selection=small
+nocows=true
+[privilege_escalation]
+become=true
+become_method=sudo
+
+```
+
+
+```bash
+mkdir inventory
+cd inventory
+vi hosts
+> test.lab.example.com var1=hello var2=world ansible_host=10.10.1.1
+> [web]
+> node1.example.com
+> 
+> [db]
+> node4.example.com
+> 
+> [middleware]
+> node2.example.com
+> node3.example.com
+
+mkdir host_vars group_vars
+cd hosts_vars
+touch node1.example.com
+touch node2.example.com
+touch node3.example.com
+touch node4.example.com
+
+# 각 파일에 다음과 같은 내용 추가
+
+cat <<EOF> nodeX.example.com
+> nodename: 'this is the {{ inventory_hostname }} node'
+EOF
+
+vi hostvars.yaml
+
+- name: 모든 노드의 "nodename"변수 호출
+  hosts: all
+
+  tasks:
+    - name: 변수 "nodename"호출
+      debug:
+        msg: "{{ nodename }}"
+
+ansible-playbook hostvars.yaml -e nodename=hehehehe
+
+```
+
+## group_vars
+
+
+```bash
+vi groupvars.yaml
+
+- name: 그룹변수 테스트
+  hosts: all
+
+  tasks:
+    - name: 그룹변수 출력
+      debug:
+        msg: "{{ name }}, {{ inventory_hostname }}"
+
+mkdir -p inventory/group_vars/all
+vi inventory/group_vars/all
+> name: "this is default name value"
+
+mkdir -p inventory/group_vars/db
+vi inventory/group_vars/db/10-default
+> name: "{{ inventory_hostname }}"
+vi inventory/group_vars/db/10-override
+> name: "I am the override value!!"
+
+mkdir -p inventory/group_vars/web
+vi inventory/group_vars/web/10-default
+> name: "{{ inventory_hostname }}"
+
+mkdir -p inventory/group_vars/middleware
+vi inventory/group_vars/middleware/10-default
+> name: "{{ inventory_hostname }}"
+
+ansible-playbook hostvars.yaml -e name=hehehehe
+```
+
+ansible.cfg
+```ini
+[defaults]
+become_password_file=sudopass.txt
+connection_password_file=sshpass.txt
+ask_pass=ansible
+remote_user=ansible
+remote_port=22
+host_key_checking=false
+
+[privilege_escalation]
+become_ask_pass=false
+become=true                                                            become_user=root
+become_method=sudo  
+```
+
+## 호스트 변수 연습문제
+
+```bash
+.
+└── inventory
+    ├── group_vars
+    │   ├── kubernetes
+    │   │   └── release
+    │   ├── middleware
+    │   │   └── middleware
+    │   ├── openstack
+    │   │   └── version
+    │   └── storage
+    │       ├── ceph
+    │       └── nfs
+    └── hosts
+```
+
+vi hosts
+```bash
+[middleware]
+node1.example.com
+
+[openstack]
+node2.example.com
+
+[kubernetes]
+node3.example.com
+
+[storage]
+node4.example.com
+```
+
+vi kubernetes/release
+```bash
+version: 1.23.00
+```
+
+vi middles/middleware
+```bash
+software: tomcat
+```
+
+vi openstack/version
+```bash
+release: rocky
+```
+vi storage/ceph
+```bash
+version: 5.0
+```
+vi storage/nfs
+```bash
+version: 4.2
+```

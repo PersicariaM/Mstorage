@@ -1,1 +1,524 @@
+# day 2
 
+## 모듈 계속
+
+```yaml
+---
+- name: 파일 모듈 테스트 앤서블
+  hosts: all
+
+  become: true
+
+  tasks:
+    - name: 파일 생성
+      file:
+        path: /tmp/test_file
+        state: touch
+        mode: u+rwx,g+rx,o=
+    - name: 디렉터리 생성
+      file:
+        path: /tmp/test_directory                                                                                      state: directory
+        mode: u=rwx,g=rx,o=    
+````
+
+```bash
+- name: 디버그 모듈 테스트
+  hosts: all
+
+  vars:
+    yourname: '최국현'
+
+  tasks:
+    - name: 일반 메세지 출력
+      debug:
+        msg: '이렇게 한글로 적으셔도 됩니다.'
+
+    - name: 변수 출력
+      deubg:
+        var: "{{ yourname }}"    
+```
+```yaml
+- name: 디버그 모듈 테스트
+  hosts: all
+
+  vars:
+    yourname: '최국현'
+
+  tasks:
+    - name: 파일 목록 출력
+      shell: ls -l
+      register: res_ls_shell
+
+    - name: alias 목록 출력
+      shell: alias
+      register: res_alias_shell
+
+    - name: 일반 메세지 출력
+      debug:
+        msg: '이렇게 한글로 적으셔도 됩니다.'
+
+    - name: 변수 출력
+      debug:
+        msg: "{{ yourname }}"
+```
+```yaml
+- name: 디버그 모듈 테스트
+  hosts: all
+
+  vars:
+    yourname: '최국현'
+
+  tasks:
+    - name: 파일 목록 출력
+      shell: ls -l
+      register: res_ls_shell
+
+    - name: 파일목록 표준 출력 내용
+      debug:
+        msg: "{{ res_ls_shell.stdout }}"
+
+    - name: alias 목록 출력
+      shell: alias
+      register: res_alias_shell
+
+    - name: alias에서 표준 출력 내용
+      debug:
+        msg: "{{ res_alias_shell.stdout }}"
+
+    - name: 일반 메세지 출력
+      debug:
+        msg: '이렇게 한글로 적으셔도 됩니다.'
+
+    - name: 변수 출력
+      debug:
+        msg: "{{ yourname }}"
+````
+
+```yaml
+- name: command vs shell
+  hosts: all
+
+  tasks:
+    - name: 쉘 모듈
+      shell: echo $HOSTNAME
+
+    - name: 컴앤드 모듈
+      command: echo $HOSTNAME
+````
+
+## 특정 작업만 실행하기(name)
+
+```bash
+grep '\-\ name' debug.yaml
+
+
+#
+# 'name:' 내부 지시자에 명시된 이름으로 작업 수행
+# 별도로 코드 수정 및 추가가 필요 없음
+# 모든 작업을 메모리 불러온 후, 특정 "작업(name:)"만 수행
+
+ansible-playbook -i inventory --start-at-task "alias 목록 출력" -vv
+
+#
+# 'tags'내부 지시자를 통해서 호출
+#
+
+    - name: alias 목록 출력
+      shell: alias
+      register: res_alias_shell
+      tags: 
+        - res
+        - alias
+# 특정 작업만 수행
+
+ansible-playbook -i inventory -t res -t alias -vv
+```
+
+```yaml
+- name: 디버그 모듈 테스트
+  hosts: all
+
+  vars:
+    yourname: '최국현'
+
+  tasks:
+    - name: 파일 목록 출력
+      shell: ls -l
+      register: res_ls_shell
+
+    - name: 파일목록 표준 출력 내용
+      debug:
+        msg: "{{ res_ls_shell.stdout }}"
+
+    - name: alias
+      shell: alias
+      register: res_alias_shell
+      tags:
+        - res
+        - alias
+
+    - name: alias에서 표준 출력 내용
+      debug:
+        msg: "{{ res_alias_shell.stdout }}"
+
+    - name: 일반 메세지 출력
+      debug:
+        msg: '이렇게 한글로 적으셔도 됩니다.'
+
+    - name: 변수 출력
+      debug:
+        msg: "{{ yourname }}"
+```
+
+```yaml
+- name: 서비스 파일 테스트
+  hosts: all
+  become: true
+
+  tasks:
+    - name: install httpd
+      package:
+        name: httpd
+        state: present
+
+    - name: install vsftpd
+      dnf:
+        name: vsftpd
+        state: present
+
+    - name: start httpd
+      service:
+        name: httpd
+        state: started
+               restarted
+               stopped
+               reloaded
+        enabled: true
+
+    - name:
+      systemd:
+        name: vsftpd
+        state: started
+        enabled: true
+```
+
+```yaml
+---
+- name: 사용자 생성
+  hosts: all
+  become: true
+
+  tasks:
+    - name: 쉘 설치
+      package:
+        name: zsh
+        state: present
+
+    - name: 그룹 생성
+      group:
+        name: test
+        gid: 50000
+        state: present
+
+    - name: 테스트 사용자 생성
+      user:
+        name: test
+        shell: /bin/zsh
+        groups: adm, wheel
+        uid: 20000
+        group: 50000
+        append: true
+        password: '$6$i6NhgY1fDqM5bIUY$C0xENqVIzZoz3EFoH1oieIpbb5UWE4yH9YtKvYS22K5cVeB3RXqzAAoZXg31ldA9jgtYPCgEEV67wNEwmjlFC0'
+```
+
+## 연습문제
+
+설치한 앤서블에서 간단하게 다음 모듈을 실행해본다. 테스트 용도로 만든 인벤토리 파일을 사용해서 작업을 수행한다.
+
+- 'file'모듈을 사용하여 "/tmp/test"라는 파일을 생성한다.
+  + "path" 옵션을 사용한다.
+- 사용자 및 그룹을 "ansible"으로 변경한다.
+  + 사용자 "test1", "test2"를 생성한다.
+  + 암호는 test으로 통일한다.
+  + 그룹은 adm, wheel에 가입한다.
+- 패키지를 설치한다.
+  + httpd, vsftp패키지를 설치한다.
+  + squid패키지를 설치한다.
+- 서비스를 동작하도록 구성한다.
+  + httpd/vsftpd/squid 서비스를 시작한다.
+- 설치된 패키지 및 사용자 제거한다.
+  + 위에서 설치한 패키지를 전부 제거한다.
+  + 위에서 생성한 사용자를 전부 제거한다.
+- 'ansible-doc'명령어를 통해서 'dnf'명령어에 대한 도움말을 확인한다.
+  + 도움말을 확인하여 간단하게 "httpd"패키지를 설치한다.
+
+## 질문 답변
+
+이지언님
+---
+1. 'user'등록시 group 및 gid부분
+2. "presnet"
+
+```yaml
+yum:
+  name: httpd
+  state: latest, present 
+                   [V]        
+````
+- latest: 최신 버전으로 패키지 설치. 패키지 설치시 라이브러리 업데이트가 발생. 
+  + dnf install httpd-2.20
+    * deps: glibc, openssl 추가적으로 업데이트.
+  + 업데이트 시 사용.
+- present: 현재 운영체제에 설치가 되어있는 라이브러리를 건들지 않고, 패키지 설치.
+  + dnf install httpd-2.12
+    * deps: 해당 부분을 건들지 않음.
+  + 패키지 설치 시 사용.
+
+
+
+이용표님
+---
+2. --start-at-task, tags, steps, --skip-tags 
+
+--tags, --skip-tags
+
+
+--start-at-task + --steps
+
+## adhoc 연습문제
+
+ad-hoc기반으로 다음과 같은 작업을 처리한다. 파일명은 adhoc-exam.sh으로 정한다. "node4.example.com" 대상으로 아래 작업을 수행한다.
+
+- "Hello World"라는 "default.html"파일을 /var/www/html/에 생성.
+  + 'copy:'모듈에서 'content'를 사용해서 위의 내용 생성.
+- 웹 서버 패키지가 설치가 안되어 있으면 yum모듈을 사용해서 설치.
+- 방화벽에 http, https서비스가 등록이 안되어 있으면 http, https service를 등록. 모듈은 firewalld를 사용.
+- 문제가 없으면 'uri'모듈을 통해서 웹 페이지 접근 및 접속이 잘 되는지 확인.
+- 동작이 안되는 부분이 있으면 올바르게 동작하도록 수정.
+
+
+
+### 힌트
+
+아래 스크립트가 "node4"에서 동작하는게 아님. "node1"에서 해당 스크립트를 실행하면, "node4"에 앤서블 adhoc으로 동작.
+
+```bash
+vi adhoc-exam.sh
+#!/bin/bash
+ansible --become -i hosts -m package -a "name=httpd state=present" node4.example.com 
+ansible --become -i hosts -m copy -a "content='hello world' dest=/var/www/html/default.html" node4.example.com
+ansible --become -i hosts -m service -a "name=httpd state=started enabled=true" node4.example.com
+ansible --become -i hosts -m uri -a "url=http://node4.example.com/default.html status_code=200" node4.example.com
+```
+
+```yaml
+- hosts: node4.example.com
+
+  tasks:
+    - package:
+        name: httpd
+        state: present
+    - copy:
+        content: 'Hello World'
+        dest: /var/www/html/default.html
+    - uri:
+        url: node4.example.com
+        status_code: 200     
+```
+## 불린 값
+
+- true/false
+- yes/no
+- 0/1
+
+## 인벤토리 정리
+
+```bash
+vi hosts
+> node1.example.com
+> node2.example.com
+> node3.example.com
+
+vi ansible.cfg
+> [defaults]
+> inventory=hosts
+> remote_user=ansible         ## ssh ansible@<HOST>
+> remote_port=8282            ## ssh port:22 --> 8282
+> [privilege_escalation]
+> become=true
+
+ansible-playbook -i hosts ---> ansible-playbook 
+```
+ansible.cfg
+```ini
+[defaults]
+inventory=hosts
+remote_user=ansible
+
+[privilege_escallation]
+become=true
+```
+
+```bash
+mkdir -p ~ansible/lab/lab1
+cd ~ansible/lab/lab1
+touch hosts
+
+ansible-config dump
+```
+
+tasks1.yaml
+
+```yaml
+- name: 테스트 학습1
+  hosts: node[1-2].example.com
+
+  pre_tasks:
+    - name: dnf저장소 비우기
+      shell: dnf clean all
+  tasks:
+    - name: 아파치 설치하기
+      dnf:
+        name: httpd
+        state: present
+  post_tasks:
+    - name: 아파치 제거하기
+      dnf:
+        name: httpd
+        state: absent
+    - name: dnf저장소 비우기
+      shell: dnf clean all
+```
+ansible.cfg
+```ini
+[defaults]
+inventory=hosts
+remote_user=ansible
+cow_selection=meow
+[privilege_escalation]
+become=true
+```
+
+hosts
+```bash
+cat <<EOF>> hosts
+> node1.example.com
+> node2.example.com
+> node3.example.com
+> node4.example.com
+> EOF
+```
+
+### 질문
+
+#### gather_facts
+
+노드의 하드웨어 및 소프트웨어 정보 수집.
+
+"gatering..."라고 메세지가 출력이 되면, 현재 앤서블이 서버에서 'setup'모듈을 실행 및 결과 저장중.
+
+- setup.
+- 상황에 따라서 게더링 정보를 선택적 혹은 아에 하지 않을수도 있음.
+
+```bash
+ansible -m setup localhost,
+```
+#### delegate_to
+
+대행자 서버이고, 일종의 게이트웨어 서버 역할. 
+- 앤서블 설치는 미필요.
+- 파이썬 버전만 잘 맞추어 주면 됨.
+
+## 연습문제
+
+
+작업은 "lab2"디렉터리를 생성 후 진행한다.
+1. ansible.cfg가 필요한 경우 생성한다.
+2. 인벤토리 파일이 필요한 경우 생성한다.
+
+
+__앤서블 작업을 다음 조건으로 구성한다. pre, post 및 tasks를 사용하여, 전후 작업을 구성한다.__
+
+- 선 작업은 "we are going to install the httpd package"메시지 출력.
+  + /var/www/html/index.html
+  + 만약, 위의 디렉터리 및 파일이 없는 경우, 'file'로 생성 및 구성.
+- 주 작업에서는 아파치 패키지를 최신 패키지로 설치.
+- 후 작업에서는 "the package has been installed"라는 메시지를 출력.
+  + debug, msg.
+
+```yaml
+- hosts: all
+
+  pre_tasks:
+  - debug:
+      msg: "we are going to install the httpd package"
+  - file:
+      path: /var/www/html
+      state: directory
+  - file:
+      path: /var/www/html/index.html
+      state: touch
+
+  tasks:
+  - package:
+      name: httpd
+      state: latest
+
+  post_tasks:
+  - debug:
+      msg: "the package has been installed"         
+```
+
+__모든 노드의 호스트 이름 설정한다.__ 
+- node[1-4].example.com으로 올바르게 호스트 이름(FQDN)를 설정한다.
+  + 'hostname'모듈을 사용해서 모든 서버에 적절하게 FQDN으로 도메인 및 호스트 네임 구성한다.
+```yaml
+- hosts: all
+
+  tasks:
+    - hostname:
+        name: "{{ inventory_hostname }}"       ## node4, node4.example.com
+    - shell: hostname
+      register: res_hostname
+
+    - debug:
+        msg: "{{ res_hostname.stdout }}"     
+```
+
+__대행서버(delegate)서버는 node1가 대행, 다음과 같은 작업을 수행한다.__
+- 대행은 반드시 node4가 한다. 
+- 인벤토리에 모든 서버에서 작업을 수행한다.
+- node1에서 다른 노드에 문제 없이 접근이 가능해야 한다.
+- 각 노드에 "/tmp/"에 "nodeX.example.com.txt" 파일이 생성하도록 한다.
+
+```yaml
+- hosts: node1.example.com
+  tasks:
+    - name: 메세지 출력
+      copy:
+        content: "{{ inventory_hostname }}"
+        dest: /tmp/{{ inventory_hostname }}.txt
+      delegate_to: node4.example.com
+      
+- hosts: node2.example.com
+  tasks:
+
+```
+
+
+```yaml
+  hosts: all
+  tasks:
+    - name: 메세지 출력
+      copy:
+        content: "{{ inventory_hostname }}"
+        dest: /tmp/{{ inventory_hostname }}.txt
+      delegate_to: node4.example.com
+```
+예상 동작 결과
+
+```bash
+changed: [node2.example.com -> node4.example.com]
+changed: [node1.example.com -> node4.example.com]
+changed: [node3.example.com -> node4.example.com]
+changed: [node4.example.com]
